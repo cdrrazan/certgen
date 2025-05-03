@@ -1,43 +1,96 @@
 # Certgen
 
-TODO: Delete this and the text below, and describe your gem
+![Ruby](https://img.shields.io/badge/Ruby-3.1%2B-red)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Gem Version](https://img.shields.io/gem/v/certgen)
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/certgen`. To experiment with that code, run `bin/console` for an interactive prompt.
+**Certgen** is a Ruby CLI tool to generate free SSL certificates from [Let's Encrypt](https://letsencrypt.org) using **DNS-01 verification**. Perfect for developers and site owners who use cPanel or manually managed servers and need to upload certificates themselves.
 
-## Installation
+## ✨ Features
 
-TODO: Replace `UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG` with your gem name right after releasing it to RubyGems.org. Please do not do it earlier due to security reasons. Alternatively, replace this section with instructions to install your gem from git if you don't plan to release to RubyGems.org.
+- ✅ Generate valid SSL certificates via Let's Encrypt
+- 🌐 Supports both base domains and `www.` subdomains automatically
+- 🔐 Uses DNS-01 challenge (great for wildcard and shared hosting)
+- 📁 Outputs `.crt`, `.pem`, and zipped bundles for easy upload
+- 🔄 Stores reusable Let's Encrypt account key
+- 🖥️ CLI interface for quick and easy usage
 
-Install the gem and add to the application's Gemfile by executing:
+## 📦 Installation
 
 ```bash
-bundle add UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+gem install certgen
 ```
 
-If bundler is not being used to manage dependencies, install the gem by executing:
+## 🚀 Usage
+
+Run the CLI tool from your terminal:
 
 ```bash
-gem install UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+certgen --domain example.com --email user@example.com
 ```
 
-## Usage
+This will:
+1. Generate or reuse your Let's Encrypt account key
+2. Create DNS-01 challenge instructions
+3. Wait for your confirmation after DNS is set
+4. Generate the certificate files
+5. Zip them for upload to cPanel or any hosting service
 
-TODO: Write usage instructions here
+### 🔄 Example Output Files
 
-## Development
+After running, your certs will be saved in:
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+```
+~/.ssl_output/example.com/
+├── certificate.crt
+├── private_key.pem
+├── ca_bundle.pem
+└── cert_bundle.zip
+```
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+## ✍️ DNS Setup
 
-## Contributing
+You'll be prompted to create a DNS TXT record:
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/certgen. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/[USERNAME]/certgen/blob/main/CODE_OF_CONDUCT.md).
+```text
+Record Name: _acme-challenge.example.com
+Record Type: TXT
+Record Value: abc123...
+```
 
-## License
+Use [https://dnschecker.org](https://dnschecker.org) to confirm propagation before continuing.
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+## 🔧 Development
 
-## Code of Conduct
+Clone and run locally:
 
-Everyone interacting in the Certgen project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/certgen/blob/main/CODE_OF_CONDUCT.md).
+```bash
+git clone https://github.com/cdrrazan/certgen
+cd certgen
+bundle install
+```
+
+Run the CLI locally:
+
+```bash
+bin/certgen --domain example.com --email user@example.com
+```
+
+## ✅ Requirements
+
+- Ruby >= 3
+- DNS management access to create TXT records
+- cPanel or similar manual SSL upload support
+
+## 📄 License
+
+This project is licensed under the MIT License. See the [LICENSE](https://github.com/cdrrazan/certgen/blob/main/LICENSE) file for details.
+
+## 🙌 Author
+
+**Rajan Bhattarai**  
+[GitHub](https://github.com/cdrrazan) • [Email](mailto:cdrrazan@gmail.com)
+
+---
+
+🛠 Contributions and issues are welcome — feel free to open a PR or issue on [GitHub](https://github.com/cdrrazan/certgen)!

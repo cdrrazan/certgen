@@ -9,3 +9,8 @@
 
 # rspec failure tracking
 .rspec_status
+
+# Custom
+/.idea/
+/.workspace/
+.DS_Store
