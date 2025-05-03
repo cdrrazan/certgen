@@ -1,36 +1,29 @@
 # frozen_string_literal: true
 
-# lib/certgen/cli.rb
-
 require "optparse"
+require_relative "generator"
 
 module Certgen
   class CLI
-    def self.start
+    def self.start(argv)
       options = {}
+      subcommand = argv.shift
 
       OptionParser.new do |opts|
-        opts.banner = "Usage: certgen [options]"
+        opts.banner = "Usage: certgen [command] [options]"
+        opts.on("--domain DOMAIN", "The domain to test") { |v| options[:domain] = v }
+        opts.on("--email EMAIL", "Contact email for registration") { |v| options[:email] = v }
+      end.parse!(argv)
 
-        opts.on("-d", "--domain DOMAIN", "Domain name") { |v| options[:domain] = v }
-        opts.on("-e", "--email EMAIL", "Email address") { |v| options[:email] = v }
-        opts.on("-w", "--wildcard", "Request a wildcard certificate") { options[:wildcard] = true }
-        opts.on("-h", "--help", "Prints this help") do
-          puts opts
-          exit
-        end
-      end.parse!
-
-      unless options[:domain] && options[:email]
-        puts "Error: Domain and email are required."
-        exit 1
+      case subcommand
+        when "generate"
+          Certgen::Generator.new(domain: options[:domain], email: options[:email]).run
+        when "test"
+          Certgen::Generator.new(domain: options[:domain], email: options[:email], staging: true).run
+        else
+          puts "Unknown command. Available: generate, test"
+          exit 1
       end
-
-      puts "[INFO] Starting certificate generation for #{options[:domain]}..."
-      Certgen.generate(
-        domain: options[:domain],
-        email: options[:email]
-      )
     end
   end
 end

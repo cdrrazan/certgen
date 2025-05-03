@@ -11,7 +11,7 @@ RSpec.describe Certgen do
   describe Certgen::Generator do
     let(:domain) { "example.com" }
     let(:email) { "user@example.com" }
-    let(:generator) { described_class.new(domain, email) }
+    let(:generator) { described_class.new(domain: domain, email: email) }
 
     it "initializes with correct domain, base_domain, output_dir, and email" do
       expect(generator.instance_variable_get(:@input_domain)).to eq("example.com")
@@ -39,13 +39,17 @@ RSpec.describe Certgen do
       cert_file = File.join(temp_dir, "certificate.crt")
       key_file = File.join(temp_dir, "private_key.pem")
       ca_file = File.join(temp_dir, "ca_bundle.pem")
-      [cert_file, key_file, ca_file].each { |f| File.write(f, "test") }
+      [cert_file, key_file, ca_file].each { |f| File.write(f, "test content") }
 
       zip_path = File.join(temp_dir, "cert_bundle.zip")
       generator.send(:create_zip, zip_path, [cert_file, key_file, ca_file])
 
       expect(File.exist?(zip_path)).to be true
-      entries = Zip::File.open(zip_path).map(&:name)
+      entries = []
+      ::Zip::File.open(zip_path) do |zipfile|
+        entries = zipfile.entries.map(&:name)
+      end
+
       expect(entries).to include("certificate.crt", "private_key.pem", "ca_bundle.pem")
     ensure
       FileUtils.rm_rf(temp_dir)

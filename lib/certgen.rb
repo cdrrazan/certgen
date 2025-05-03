@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require_relative "certgen/version"
 require "certgen/cli"
 require "certgen/generator"
+require "certgen/version"
 
 module Certgen
   # Custom error class for all Certgen-specific errors
@@ -11,8 +11,8 @@ module Certgen
   # Main entry point for generating certificates
   def self.generate(domain:, email:)
     Certgen::Generator.new(
-      domain:,
-      email:
+      domain: domain,
+      email: email
     ).run
   end
 end

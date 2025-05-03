@@ -32,10 +32,10 @@ Gem::Specification.new do |spec|
   spec.bindir = "exe"
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
-
-  spec.add_dependency "acme-client"
-  spec.add_dependency "optparse"
-  spec.add_dependency "rubyzip"
+  
+  gem "acme-client", "~> 2.0.21"
+  gem "optparse", "~> 0.6.0"
+  gem "rubyzip", "~> 2.4.1" # Use "~> 3.0.0.rc2" for the pre-release version
 
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html

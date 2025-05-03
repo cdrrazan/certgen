@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require "certgen"
+require_relative "../lib/certgen/cli"
 
-Certgen::CLI.start
+Certgen::CLI.start(ARGV)

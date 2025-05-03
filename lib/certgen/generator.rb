@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 require "acme-client"
-require "openssl"
 require "fileutils"
+require "openssl"
 require "zip"
 
 module Certgen
@@ -10,9 +10,13 @@ module Certgen
     LETS_ENCRYPT_DIRECTORY = "https://acme-v02.api.letsencrypt.org/directory"
     ACCOUNT_KEY_PATH = File.expand_path("~/.certgen/acme_account.key")
 
-    def initialize(domain:, email:)
+    def initialize(domain:, email:, staging: false)
       @input_domain = domain
       @email = email
+      @staging = staging
+      @directory_url = staging ?
+        "https://acme-staging-v02.api.letsencrypt.org/directory" :
+        "https://acme-v02.api.letsencrypt.org/directory"
       @base_domain = domain.sub(/^www\./, "")
       @domains = [@base_domain, "www.#{@base_domain}"].uniq
       @output_dir = File.expand_path("~/.ssl_output/#{@base_domain}")
@@ -46,17 +50,21 @@ module Certgen
     def setup_client
       @client = Acme::Client.new(
         private_key: @account_key,
-        directory: LETS_ENCRYPT_DIRECTORY
+        directory: @directory_url
       )
 
       begin
         @client.new_account(contact: "mailto:#{@email}", terms_of_service_agreed: true)
       rescue Acme::Client::Error::Malformed
-        puts "✅ ACME account already registered."
+        puts "❌ ACME account already registered."
       end
     end
 
     def create_output_directory
+      if Dir.exist?(@output_dir)
+        puts "🧹 Cleaning existing output directory: #{@output_dir}"
+        FileUtils.rm_rf(@output_dir)
+      end
       FileUtils.mkdir_p(@output_dir)
     end
 
@@ -127,7 +135,7 @@ module Certgen
     end
 
     def create_zip(zip_path, files)
-      Zip::File.open(zip_path, Zip::File::CREATE) do |zipfile|
+      ::Zip::File.open(zip_path, Zip::File::CREATE) do |zipfile|
         files.each do |file|
           zipfile.add(File.basename(file), file) if File.exist?(file)
         end
