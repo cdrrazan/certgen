@@ -23,18 +23,29 @@ gem install certgen
 
 ## 🚀 Usage
 
+#### 🔧 Testing with Let’s Encrypt Production
 Run the CLI tool from your terminal:
 
 ```bash
 certgen --domain example.com --email user@example.com
 ```
-
-This will:
+This above command will overall:
 1. Generate or reuse your Let's Encrypt account key
 2. Create DNS-01 challenge instructions
 3. Wait for your confirmation after DNS is set
 4. Generate the certificate files
 5. Zip them for upload to cPanel or any hosting service
+
+#### 🔧 Testing with Let’s Encrypt Staging
+
+To avoid hitting rate limits during development or testing, use the Let’s Encrypt staging environment:
+
+```bash
+certgen test --domain example.com --email you@example.com
+```
+
+- This runs the same generation process but against the staging ACME server.
+- Useful for verifying DNS setup and automation without generating real certificates.
 
 ### 🔄 Example Output Files
 
