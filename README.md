@@ -18,6 +18,19 @@
    bundle install
    ```
 
+## 🌍 Global Usage (Recommended)
+
+To run `certgen` from anywhere without typing the full path, create a symlink in your system bin:
+
+```bash
+sudo ln -s "$(pwd)/bin/certgen" /usr/local/bin/certgen
+```
+
+Now you can simply run:
+```bash
+certgen generate --domain example.com --email user@example.com
+```
+
 ## 🚀 Usage
 
 #### 🔧 Generating Certificates
@@ -55,6 +68,16 @@ After running, your certs will be saved in:
 ├── ca_bundle.pem
 └── cert_bundle.zip
 ```
+
+## 🧪 Testing
+
+The project uses RSpec for testing. To run the full test suite:
+
+```bash
+bundle exec rspec
+```
+
+The tests include mocks for the ACME API and file system, ensuring safe and fast execution.
 
 ## ✍️ DNS Setup
 

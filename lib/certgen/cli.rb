@@ -30,6 +30,13 @@ module Certgen
       # After parsing global options, the first remaining element is our subcommand
       subcommand = argv.shift
 
+      # Parse remaining arguments to catch flags provided after the subcommand
+      begin
+        parser.parse!(argv)
+      rescue OptionParser::InvalidOption => e
+        abort "❌ Error: #{e.message}\n#{parser}"
+      end
+
       # Validate that we have a valid action to perform
       validate_subcommand!(subcommand, parser)
       # Ensure mandatory identity/domain details are present
