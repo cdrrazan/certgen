@@ -1,0 +1,31 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# ---
+# Certgen Setup Script
+# A standard Ruby pattern to automate developer/environment bootstrapping.
+# ---
+
+require 'fileutils'
+
+# Calculate the application root relative to this script's location.
+APP_ROOT = File.expand_path('..', __dir__)
+
+# Helper to execute shell commands with immediate failure on error.
+# Standard practice for idempotent setup scripts.
+def system!(*args)
+  system(*args) || abort("\n== Command #{args} failed ==")
+end
+
+FileUtils.chdir APP_ROOT do
+  puts '== Installing dependencies =='
+  
+  # Ensure Bundler is available. --conservative avoids unnecessary updates.
+  system! 'gem install bundler --conservative'
+  
+  # Perform a check-first install to avoid redundant work in dev environments.
+  system! 'bundle check || bundle install'
+
+  puts "\n== Setup complete! =="
+  puts 'The application is ready. You can now execute: bin/certgen --help'
+end

@@ -104,7 +104,7 @@ This project is licensed under the MIT License. See the [LICENSE](https://github
 ## 🙌 Author
 
 **Rajan Bhattarai**  
-[GitHub](https://github.com/cdrrazan) • [Email](mailto:cdrrazan@gmail.com)
+[GitHub](https://github.com/cdrrazan) • [Email](mailto:rajan@rajanbhattarai.com)
 
 ---
 

@@ -1,19 +1,20 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# ---
-# Certgen Bootstrapper
-# This entry point configures the load path and delegates execution to the CLI handler.
+# --- 
+# Certgen CLI Entry Point
+# This script configures the local runtime environment and delegates to the CLI handler.
+# Designed for maximum portability as a standalone Ruby application.
 # ---
 
-# Append the local 'lib' directory to the $LOAD_PATH.
-# This ensures that 'require certgen' resolves to our local implementation
-# rather than an installed gem version, facilitating standalone portability.
+# Strategic Load Path Modification:
+# We unshift the local 'lib' directory into the $LOAD_PATH. This ensures:
+# 1. Faster resolution of internal requires.
+# 2. Local parity (running bin/certgen always uses the adjacent lib/ code).
 $LOAD_PATH.unshift File.expand_path('../lib', __dir__)
 
 require 'certgen'
 
-# Invoke the CLI entry point with the provided command-line arguments.
-# We rescue common high-level exceptions here if needed, though most
-# error handling is encapsulated within the CLI class itself.
+# Transfer control to the CLI orchestration layer.
+# We pass the process-level ARGV to handle user-provided flags and subcommands.
 Certgen::CLI.start(ARGV)

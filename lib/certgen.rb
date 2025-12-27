@@ -3,32 +3,34 @@
 require_relative 'certgen/cli'
 require_relative 'certgen/generator'
 
-# Certgen: A streamlined CLI tool for automated SSL certificate generation.
+# Certgen: A high-performance CLI utility for automated SSL certificate orchestration.
 #
-# This module serves as the primary namespace and public API for the Certgen application.
-# It encapsulates versioning, error handling, and high-level orchestration logic.
+# This tool abstracts the ACME v2 protocol (specifically Let's Encrypt) to provide
+# a streamlined path for generating certificates using DNS-01 verification.
+#
+# Implementation Principle:
+# - Minimalist but robust.
+# - Leverages standard libraries (OpenSSL, FileUtils) wherever possible.
+# - Designed for both direct CLI usage and programmatic integration.
 #
 # @author Rajan Bhattarai
 # @since 0.1.0
 module Certgen
-  # Current version of the Certgen tool. Follows Semantic Versioning (SemVer).
+  # Current version of the Certgen application.
+  # We adhere to Semantic Versioning (https://semver.org/).
   VERSION = '0.1.0'
 
-  # Base exception class for all domain-specific errors within the Certgen namespace.
-  # Rescuing this allows callers to handle all Certgen-related failures predictably.
+  # Base exception for the Certgen namespace.
+  # Rescuing this allows consumers to handle all domain-level errors.
   class Error < StandardError; end
 
-  # High-level convenience method to trigger certificate generation.
-  # This provides a clean Ruby API for consumers who might want to use Certgen
-  # programmatically rather than via the CLI.
+  # Programmatic entry point for triggering certificate generation.
+  # Use this if you are integrating Certgen into a larger Ruby script or system.
   #
-  # @param domain [String] The apex domain or subdomain to secure.
-  # @param email [String] Contact email for Let's Encrypt account registration.
-  # @return [Boolean] Returns true if the process completes successfully.
-  # @raise [Certgen::Error] If generation fails due to validation or API errors.
-  #
-  # @example
-  #   Certgen.generate(domain: "example.com", email: "admin@example.com")
+  # @param domain [String] The apex or subdomain to secure.
+  # @param email [String] Contact email for the ACME registration.
+  # @return [Boolean] Returns true if the process completes without exception.
+  # @raise [Certgen::Error] if validation or API protocols fail.
   def self.generate(domain:, email:)
     Certgen::Generator.new(
       domain: domain,

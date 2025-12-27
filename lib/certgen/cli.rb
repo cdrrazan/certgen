@@ -4,61 +4,64 @@ require 'optparse'
 require_relative 'generator'
 
 module Certgen
-  # CLI: The command-line interface layer for Certgen.
+  # CLI: The orchestration layer for the Command Line Interface.
   #
-  # This class handles argument parsing, subcommand routing, and basic input validation.
-  # It leverages Ruby's standard 'optparse' library for a native feel and robust flag handling.
+  # This class implements a standard subcommand pattern (generate/test) and handles
+  # the translation of CLI flags into application-level configuration.
+  #
+  # It follows common Ruby CLI conventions:
+  # - Informative usage banners
+  # - Proper exit codes for errors (1) and interrupts (130)
+  # - Separation of configuration parsing and execution logic
   class CLI
-    # Entry point for the CLI application.
-    # Parses top-level commands and delegates to specific handlers.
+    # The primary entry point for the CLI executable.
+    # Handles argument lifecycle and high-level exception management.
     #
-    # @param argv [Array<String>] The raw command-line arguments (usually ARGV).
+    # @param argv [Array<String>] Raw arguments, primarily from ARGV.
+    # @return [void]
     def self.start(argv)
       options = {}
       parser = create_option_parser(options)
 
       begin
-        # Parse global flags (like -v, -h) before shifting the subcommand
-        # This allows 'certgen -v' to work without a subcommand.
+        # Phase 1: Identify global flags and shortcuts (-v, -h).
+        # We use #order! to stop at the first non-option (the subcommand).
         parser.order!(argv)
-      rescue OptionParser::InvalidOption => e
-        abort "❌ Error: #{e.message}\n#{parser}"
-      rescue OptionParser::MissingArgument => e
+      rescue OptionParser::InvalidOption, OptionParser::MissingArgument => e
         abort "❌ Error: #{e.message}\n#{parser}"
       end
 
-      # After parsing global options, the first remaining element is our subcommand
+      # Phase 2: Extract the subcommand (the primary action).
       subcommand = argv.shift
 
-      # Parse remaining arguments to catch flags provided after the subcommand
+      # Phase 3: Parse remaining flags provided specifically for the subcommand.
       begin
         parser.parse!(argv)
       rescue OptionParser::InvalidOption => e
         abort "❌ Error: #{e.message}\n#{parser}"
       end
 
-      # Validate that we have a valid action to perform
+      # Phase 4: Validation and Guarding.
       validate_subcommand!(subcommand, parser)
-      # Ensure mandatory identity/domain details are present
       validate_options!(options, parser)
 
-      # Execution phase
+      # Phase 5: Execution delegation.
       execute_command(subcommand, options)
     rescue Interrupt
-      # Handle Ctrl+C gracefully
+      # Handle SIGINT (Ctrl+C) gracefully to prevent stack traces.
       puts "\n👋 Operation cancelled by user."
       exit 130
     rescue Certgen::Error => e
-      # Domain-specific errors handled with clean output
+      # Expected domain errors are formatted and displayed with failure status.
       abort "❌ Application Error: #{e.message}"
     rescue StandardError => e
-      # Unexpected failures include backtrace for debugging if needed
+      # Unexpected failures include path/trace info if the DEBUG environment is set.
       abort "💥 Unexpected Error: #{e.message}\n#{e.backtrace.join("\n") if ENV['DEBUG']}"
     end
 
-    # Configures the OptionParser instance with supported flags.
+    # Configures the OptionParser instance that defines our CLI interface.
     #
-    # @param options [Hash] Mutable state to store parsed configuration.
+    # @param options [Hash] A mutable hash used to store the parsed flag values.
     # @return [OptionParser]
     def self.create_option_parser(options)
       OptionParser.new do |opts|
@@ -93,7 +96,11 @@ module Certgen
       end
     end
 
-    # Ensures the provided subcommand is recognized by the system.
+    # Validates that a recognized subcommand was provided.
+    #
+    # @param subcommand [String, nil]
+    # @param parser [OptionParser] Used to display help on failure.
+    # @return [void]
     def self.validate_subcommand!(subcommand, parser)
       return if %w[generate test].include?(subcommand)
 
@@ -101,7 +108,11 @@ module Certgen
       abort "❌ #{message}\n#{parser}"
     end
 
-    # Validates presence of mandatory flags for cert generation.
+    # Ensures mandatory prerequisites for certificate issuance are present.
+    #
+    # @param options [Hash]
+    # @param parser [OptionParser]
+    # @return [void]
     def self.validate_options!(options, parser)
       missing = []
       missing << '--domain' unless options[:domain]
@@ -112,7 +123,11 @@ module Certgen
       abort "❌ Missing required options: #{missing.join(', ')}\n#{parser}"
     end
 
-    # Routes execution to the appropriate Generator instance.
+    # Routes the validated request to the core Generator engine.
+    #
+    # @param subcommand [String]
+    # @param options [Hash]
+    # @return [void]
     def self.execute_command(subcommand, options)
       is_staging = (subcommand == 'test')
 

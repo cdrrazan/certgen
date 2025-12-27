@@ -10,7 +10,18 @@
 # rspec failure tracking
 .rspec_status
 
-# Custom
+# IDE / Workspace
 /.idea/
+/.vscode/
 /.workspace/
 .DS_Store
+
+# Ruby essentials
+*.gem
+*.rbc
+lib/certgen/version.rb
+.ruby-version
+
+# ACME / CertGen specific
+.certgen/
+.ssl_output/

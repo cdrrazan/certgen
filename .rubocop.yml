@@ -1,0 +1,56 @@
+plugins:
+  - rubocop-performance
+  - rubocop-rspec
+
+AllCops:
+  NewCops: enable
+  Exclude:
+    - 'vendor/**/*'
+    - 'db/**/*'
+    - 'bin/**/*'
+    - 'spec/spec_helper.rb'
+  TargetRubyVersion: 3.3
+
+Layout/LineLength:
+  Max: 120
+  Exclude:
+    - 'spec/**/*'
+
+Metrics/ClassLength:
+  Max: 150
+  Exclude:
+    - 'lib/certgen/generator.rb'
+
+Metrics/MethodLength:
+  Max: 30
+  Exclude:
+    - 'lib/certgen/generator.rb'
+
+Metrics/AbcSize:
+  Max: 40
+  Exclude:
+    - 'lib/certgen/generator.rb'
+
+Style/Documentation:
+  Enabled: true
+
+Style/FrozenStringLiteralComment:
+  Enabled: true
+
+Style/StringLiterals:
+  EnforcedStyle: single_quotes
+
+Style/SymbolArray:
+  EnforcedStyle: percent
+
+Style/WordArray:
+  EnforcedStyle: percent
+
+RSpec/MultipleExpectations:
+  Max: 5
+
+RSpec/MultipleMemoizedHelpers:
+  Max: 10
+
+RSpec/ExampleLength:
+  Max: 20

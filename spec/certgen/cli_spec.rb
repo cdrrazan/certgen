@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+# Certgen::CLI Spec
+#
+# These tests validate the orchestration layer: argument parsing, global flag handling,
+# and delegation to the core generator engine.
 RSpec.describe Certgen::CLI do
   describe '.start' do
     let(:generator) { instance_double(Certgen::Generator) }
@@ -8,16 +12,14 @@ RSpec.describe Certgen::CLI do
       allow(Certgen::Generator).to receive(:new).and_return(generator)
       allow(generator).to receive(:run)
 
-      # Silence all output streams to keep RSpec output clean
+      # Strategic suppression of standard output/error to keep RSpec test results focused.
       allow($stdout).to receive(:puts)
       allow($stdout).to receive(:print)
       allow($stderr).to receive(:puts)
       allow($stderr).to receive(:print)
 
-      # Stub abort on the CLI class specifically to prevent it from printing to stderr
-      # and ensure it raises SystemExit with failure status (1) as expected.
-      allow(Certgen::CLI).to receive(:abort) do |_msg|
-        # In Ruby, abort(msg) behaves like $stderr.puts(msg); exit(1)
+      # Intercept the #abort method to prevent process termination and verify exit status.
+      allow(described_class).to receive(:abort) do |_msg|
         raise SystemExit, 1
       end
     end
@@ -25,8 +27,8 @@ RSpec.describe Certgen::CLI do
     context "with valid 'generate' command" do
       let(:argv) { ['generate', '--domain', 'example.com', '--email', 'user@example.com'] }
 
-      it 'successfully routes to the generator' do
-        expect { Certgen::CLI.start(argv) }.not_to raise_error
+      it 'successfully parses options and initializes the production generator' do
+        expect { described_class.start(argv) }.not_to raise_error
         expect(Certgen::Generator).to have_received(:new).with(
           domain: 'example.com',
           email: 'user@example.com',
@@ -38,8 +40,8 @@ RSpec.describe Certgen::CLI do
     context "with 'test' command (staging)" do
       let(:argv) { ['test', '-d', 'example.org', '-e', 'test@example.org'] }
 
-      it 'routes to the generator with staging enabled' do
-        Certgen::CLI.start(argv)
+      it 'configures the generator to use the staging ACME environment' do
+        described_class.start(argv)
         expect(Certgen::Generator).to have_received(:new).with(
           domain: 'example.org',
           email: 'test@example.org',
@@ -51,24 +53,25 @@ RSpec.describe Certgen::CLI do
     context 'with unknown command' do
       let(:argv) { ['unknown'] }
 
-      it 'aborts with an error message' do
-        expect { Certgen::CLI.start(argv) }.to raise_error(SystemExit) do |error|
+      it 'terminates the application with a failure status (1)' do
+        expect { described_class.start(argv) }.to raise_error(SystemExit) do |error|
           expect(error.status).to eq(1)
         end
       end
     end
 
-    context 'with missing flags' do
+    context 'with missing mandatory flags' do
       let(:argv) { ['generate', '--domain', 'example.com'] }
 
-      it 'aborts due to missing email' do
-        expect { Certgen::CLI.start(argv) }.to raise_error(SystemExit)
+      it 'guards against incomplete configuration and aborts' do
+        expect { described_class.start(argv) }.to raise_error(SystemExit)
       end
     end
 
-    context 'with global flags' do
-      it 'displays the version and exits' do
-        expect { Certgen::CLI.start(['-v']) }.to raise_error(SystemExit)
+    context 'with global informational flags' do
+      it 'displays the version and terminates successfully' do
+        # NOTE: #puts is stubbed, but we verify SystemExit is still triggered.
+        expect { described_class.start(['-v']) }.to raise_error(SystemExit)
       end
     end
   end

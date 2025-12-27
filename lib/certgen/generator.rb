@@ -9,41 +9,43 @@ module Certgen
   # Generator: Core implementation of the ACME (Automated Certificate Management Environment) protocol.
   #
   # This class orchestrates the complex dance of SSL certificate issuance:
-  # 1. ACME Account Management (registration/re-authentication)
-  # 2. Domain Authorization (DNS-01 challenge orchestration)
-  # 3. Order Finalization (CSR generation and signing)
-  # 4. Artifact Management (Key and Certificate persistence)
+  # 1. ACME Account Management: Identifies the user to Let's Encrypt using a persistent RSA key.
+  # 2. Domain Authorization: Proves ownership of the domains via DNS-01 TXT record manual injection.
+  # 3. Order Finalization: Generates a CSR and requests the CA to sign it.
+  # 4. Artifact Management: Persists the resulting keys, certificates, and bundles for user deployment.
   #
-  # It targets Let's Encrypt specifically but follows standard ACME v2 patterns.
+  # It targets Let's Encrypt specifically but follows standard RFC 8555 (ACME) patterns.
   class Generator
     # Production directory URL for Let's Encrypt.
     LETS_ENCRYPT_PRODUCTION = 'https://acme-v02.api.letsencrypt.org/directory'
-    # Staging directory URL (safer for testing/debugging to avoid rate limits).
-    LETS_ENCRYPT_STAGING    = 'https://acme-staging-v02.api.letsencrypt.org/directory'
+    # Staging directory URL - crucial for testing to avoid strict rate limits.
+    LETS_ENCRYPT_STAGING = 'https://acme-staging-v02.api.letsencrypt.org/directory'
 
     # Default path for the persistent ACME account key.
-    # Reusing this key across runs is a best practice to keep a consistent ACME identity.
+    # We reuse this key to maintain a consistent identity with Let's Encrypt, which is
+    # helpful for tracking rate limits and managing existing authorizations.
     ACCOUNT_KEY_PATH = File.expand_path('~/.certgen/acme_account.key')
 
     # @param domain [String] The apex or subdomain to secure.
     # @param email [String] The email used to register or identify the ACME account.
     # @param staging [Boolean] If true, uses the Let's Encrypt staging environment.
     def initialize(domain:, email:, staging: false)
-      @input_domain  = domain
-      @email         = email
-      @staging       = staging
+      @input_domain = domain
+      @email = email
+      @staging = staging
       @directory_url = staging ? LETS_ENCRYPT_STAGING : LETS_ENCRYPT_PRODUCTION
 
-      # Handle 'www' normalization. We issue for both apex and www by default.
-      @base_domain   = domain.sub(/^www\./, '')
-      @domains       = [@base_domain, "www.#{@base_domain}"].uniq
+      # ACME typically requires authorization for both apex and www subdomains unless using wildcards.
+      # We normalize to both for maximum "out-of-the-box" compatibility for standard web hosting.
+      @base_domain = domain.sub(/^www\./, '')
+      @domains = [@base_domain, "www.#{@base_domain}"].uniq
 
-      # Directory where generated certificates and keys will be stored.
-      @output_dir    = File.expand_path("~/.ssl_output/#{@base_domain}")
+      # Output artifacts are organized by the base domain to keep the home directory clean.
+      @output_dir = File.expand_path("~/.ssl_output/#{@base_domain}")
     end
 
     # Orchestrates the full lifecycle of certificate generation.
-    # Entry point for the generator logic.
+    # This is the primary entry point for the business logic.
     #
     # @raise [Certgen::Error] if any step in the process fails.
     def run
@@ -59,13 +61,16 @@ module Certgen
       save_certificate_files
       notify_user
     rescue StandardError => e
+      # Wrap low-level or library errors in our domain-specific exception for cleaner CLI reporting.
       raise Certgen::Error, "Generation failed: #{e.message}"
     end
 
     private
 
     # Retrieves or generates the primary ACME account key (RSA 4096).
-    # This key identifies the user to Let's Encrypt.
+    # This key is NOT the certificate key; it is your identity for the ACME server.
+    #
+    # @return [void]
     def ensure_account_key!
       FileUtils.mkdir_p(File.dirname(ACCOUNT_KEY_PATH))
 
@@ -80,7 +85,9 @@ module Certgen
     end
 
     # Initializes the ACME client and handles account registration.
-    # Registration is idempotent; if the account exists, we move forward.
+    # Registration is idempotent; if the account already exists for the key, we move forward.
+    #
+    # @return [void]
     def setup_client
       @client = Acme::Client.new(
         private_key: @account_key,
@@ -90,22 +97,28 @@ module Certgen
       begin
         @client.new_account(contact: "mailto:#{@email}", terms_of_service_agreed: true)
       rescue Acme::Client::Error::Malformed
-        # Often means the account is already registered for this key
+        # ACME 201 Created vs 200 OK - library handles registration, so Malformed usually
+        # implies the account is already associated with this key.
         puts 'ℹ️  ACME account session established.'
       end
     end
 
     # Prepares the target storage location.
-    # Note: Currently wipes previous output for the same domain to ensure no stale artifacts.
+    # We purge any existing directory to ensure we don't end up with mixed or stale cert files.
+    #
+    # @return [void]
     def create_output_directory
       if Dir.exist?(@output_dir)
-        puts "🧹 Preparing output directory: #{@output_dir}"
+        puts "🧹 Purging stale artifacts from: #{@output_dir}"
         FileUtils.rm_rf(@output_dir)
       end
       FileUtils.mkdir_p(@output_dir)
     end
 
     # Initiates a new ACME Order for the specified domain set.
+    # The order status transitions from 'pending' as we fulfill authorizations.
+    #
+    # @return [void]
     def order_certificate
       puts '📦 Creating new certificate order...'
       @order = @client.new_order(identifiers: @domains)
@@ -113,28 +126,33 @@ module Certgen
     end
 
     # Iterates through required authorizations and prompts for DNS-01 verification.
-    # This is the manual step where the user must modify their DNS records.
+    # This remains the only manual step. DNS-01 is preferred over HTTP-01 as it
+    # handles wildcard domains and doesn't require firewall modifications.
+    #
+    # @return [void]
+    # @raise [Certgen::Error] if validation fails after polling.
     def verify_dns_challenges
       @authorizations.each do |auth|
         domain = auth.identifier['value']
         challenge = auth.dns
 
         puts "\n#{'=' * 60}"
-        puts "🔑 DNS-01 CHALLENGE REQUIRED: #{domain}"
+        puts "🔑 ACTION REQUIRED: Update DNS for #{domain}"
         puts('=' * 60)
         puts 'Type:  TXT'
         puts "Host:  _acme-challenge.#{domain}"
         puts "Value: #{challenge.record_content}"
         puts('=' * 60)
-        puts "\n👉 Please create the TXT record above in your DNS provider."
-        puts '⏳ Propagation can take several minutes (check via dnschecker.org).'
-        puts '⌨️  Press ENTER when you are confident the record is live...'
+        puts "\n👉 Please create the TXT record above in your DNS provider manager."
+        puts '⏳ Global propagation can take time. Use https://dnschecker.org to audit.'
+        puts '⌨️  Press [ENTER] only after you verify the record is publicly visible...'
 
         $stdin.gets
 
+        # Tell Let's Encrypt to start checking the record
         challenge.request_validation
 
-        # Polling loop for challenge status
+        # Polling loop: Active wait for status transition out of 'pending'
         while challenge.status == 'pending'
           print '.'
           sleep 5
@@ -151,14 +169,18 @@ module Certgen
     end
 
     # Finalizes the order by generating a new Certificate Signing Request (CSR).
-    # The certificate key generated here is DIFFERENT from the account key.
+    # We generate a fresh RSA 4096 key for the certificate itself. This separation
+    # of the Account Key and Certificate Key is a security best practice.
+    #
+    # @return [void]
+    # @raise [Certgen::Error] if the order fails to transition to 'valid'.
     def finalize_certificate
-      puts '📝 Generating CSR and finalising order...'
+      puts '📝 Finalizing order and generating CSR...'
 
-      # We generate a fresh 4096-bit RSA key for the actual certificate
+      # Generate the actual private key that secures your web traffic.
       @certificate_key = OpenSSL::PKey::RSA.new(4096)
 
-      # Build the CSR with the requested domains
+      # Construct the CSR containing the domains we verified.
       csr = Acme::Client::CertificateRequest.new(
         private_key: @certificate_key,
         names: @domains
@@ -166,7 +188,7 @@ module Certgen
 
       @order.finalize(csr: csr)
 
-      # Wait for the CA to process the request and issue the cert
+      # Order processing usually takes a few seconds at Let's Encrypt.
       while @order.status == 'processing'
         sleep 2
         @order.reload
@@ -177,27 +199,32 @@ module Certgen
       raise Certgen::Error, "Order finalization failed (Status: #{@order.status})"
     end
 
-    # Writes the resulting cryptographic artifacts to the filesystem.
+    # Persists the final cryptographic artifacts.
+    # Most hosts (like cPanel) expect individual PEM files or a consolidated ZIP.
+    #
+    # @return [void]
     def save_certificate_files
       key_path = File.join(@output_dir, 'private_key.pem')
       crt_path = File.join(@output_dir, 'certificate.crt')
-      ca_path  = File.join(@output_dir, 'ca_bundle.pem')
+      ca_path = File.join(@output_dir, 'ca_bundle.pem')
 
-      # Write individual PEM components
+      # Persistence Layer
       File.write(key_path, @certificate_key.to_pem)
-      File.write(crt_path, @order.certificate) # Contains the full chain
-      File.write(ca_path, @order.certificate)  # Mirroring for compatibility
+      # @order.certificate typically contains the full chain (leaf + intermediate).
+      File.write(crt_path, @order.certificate)
+      # Mirroring the chain for CA Bundle compatibility on legacy platforms.
+      File.write(ca_path, @order.certificate)
 
-      # Create a convenient ZIP bundle for download/transfer
+      # Bundling: Convenience package for easier upload/transfer.
       zip_path = File.join(@output_dir, 'cert_bundle.zip')
       create_zip(zip_path, [key_path, crt_path, ca_path])
     end
 
-    # Compresses multiple files into a single ZIP archive.
-    # Uses the 'rubyzip' gem.
+    # Utility method for cross-platform file compression.
     #
-    # @param zip_path [String] Output path for the zip file.
-    # @param files [Array<String>] List of absolute file paths to include.
+    # @param zip_path [String] Target filesystem path.
+    # @param files [Array<String>] Paths of files to include.
+    # @return [void]
     def create_zip(zip_path, files)
       ::Zip::File.open(zip_path, Zip::File::CREATE) do |zipfile|
         files.each do |file|
@@ -208,17 +235,19 @@ module Certgen
       end
     end
 
-    # Final user notification with path details.
+    # Provides the final success payload and instructions to the CLI user.
+    #
+    # @return [void]
     def notify_user
       puts "\n#{'🎉' * 20}"
       puts 'SSL CERTIFICATE SUCCESSFULLY ISSUED'
       puts('🎉' * 20)
       puts "📍 Path:   #{@output_dir}"
       puts '🎁 Bundle: cert_bundle.zip'
-      puts "\nInstructions:"
-      puts '1. Extract the bundle.'
-      puts "2. Upload 'certificate.crt' and 'private_key.pem' to your server/cPanel."
-      puts "3. Don't forget to keep your account key safe!"
+      puts "\nNext Steps:"
+      puts '1. Download the cert_bundle.zip from the path above.'
+      puts "2. In your hosting panel: upload 'certificate.crt' and 'private_key.pem'."
+      puts '3. Keep your ACME account key secure for future renewals.'
       puts('=' * 40)
     end
   end
