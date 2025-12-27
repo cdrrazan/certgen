@@ -2,16 +2,25 @@
 
 source "https://rubygems.org"
 
-# Specify your gem's dependencies in certgen.gemspec
-gemspec
+# --- Runtime Dependencies ---
 
-gem 'acme-client', '~> 2.0.21'
-gem "rake", "~> 13.0"
-gem "rspec", "~> 3.0"
-gem "rubocop", "~> 1.21"
-gem 'rubyzip', '~> 2.3'
+# ACME protocol client for Let's Encrypt / RFC 8555
+gem "acme-client", "~> 2.0.21"
 
+# ZIP archive manipulation for certificate bundling
+gem "rubyzip",     "~> 2.4"
+
+# HTTP Transport & Resiliency
 gem "faraday-net_http", "~> 3.4"
-gem "json", "~> 2.11"
+gem "faraday-retry",    "~> 2.3"
+
+# Core Utilities
+gem "json",   "~> 2.11"
 gem "logger", "~> 1.7"
-gem "faraday-retry", "~> 2.3"
+
+# --- Development & Testing ---
+group :development, :test do
+  gem "rake",    "~> 13.0"
+  gem "rspec",   "~> 3.0"
+  gem "rubocop", "~> 1.21"
+end

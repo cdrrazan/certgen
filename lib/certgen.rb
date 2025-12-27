@@ -1,24 +1,34 @@
 # frozen_string_literal: true
 
-require "certgen/cli"
-require "certgen/generator"
-require "certgen/version"
+require_relative "certgen/cli"
+require_relative "certgen/generator"
 
-# Main module for the Certgen gem
-# Provides a simple interface for generating SSL certificates using Let's Encrypt
+# Certgen: A streamlined CLI tool for automated SSL certificate generation.
 #
-# @example Generate a certificate
-#   Certgen.generate(domain: "example.com", email: "user@example.com")
+# This module serves as the primary namespace and public API for the Certgen application.
+# It encapsulates versioning, error handling, and high-level orchestration logic.
+#
+# @author Rajan Bhattarai
+# @since 0.1.0
 module Certgen
-  # Custom error class for all Certgen-specific errors
+  # Current version of the Certgen tool. Follows Semantic Versioning (SemVer).
+  VERSION = "0.1.0"
+
+  # Base exception class for all domain-specific errors within the Certgen namespace.
+  # Rescuing this allows callers to handle all Certgen-related failures predictably.
   class Error < StandardError; end
 
-  # Generates an SSL certificate for the given domain
+  # High-level convenience method to trigger certificate generation.
+  # This provides a clean Ruby API for consumers who might want to use Certgen
+  # programmatically rather than via the CLI.
   #
-  # @param domain [String] The domain name to issue the certificate for
-  # @param email [String] Email address for Let's Encrypt registration
-  # @return [void]
-  # @raise [Error] If certificate generation fails
+  # @param domain [String] The apex domain or subdomain to secure.
+  # @param email [String] Contact email for Let's Encrypt account registration.
+  # @return [Boolean] Returns true if the process completes successfully.
+  # @raise [Certgen::Error] If generation fails due to validation or API errors.
+  #
+  # @example
+  #   Certgen.generate(domain: "example.com", email: "admin@example.com")
   def self.generate(domain:, email:)
     Certgen::Generator.new(
       domain: domain,

@@ -4,106 +4,117 @@ require "optparse"
 require_relative "generator"
 
 module Certgen
-  # Command-line interface for Certgen
-  # Handles parsing command-line arguments and executing the appropriate commands
+  # CLI: The command-line interface layer for Certgen.
+  #
+  # This class handles argument parsing, subcommand routing, and basic input validation.
+  # It leverages Ruby's standard 'optparse' library for a native feel and robust flag handling.
   class CLI
-    # Starts the CLI application
+    # Entry point for the CLI application.
+    # Parses top-level commands and delegates to specific handlers.
     #
-    # @param argv [Array<String>] Command-line arguments
-    # @return [void]
+    # @param argv [Array<String>] The raw command-line arguments (usually ARGV).
     def self.start(argv)
       options = {}
-      subcommand = argv.shift
-
       parser = create_option_parser(options)
 
       begin
-        parser.parse!(argv)
+        # Parse global flags (like -v, -h) before shifting the subcommand
+        # This allows 'certgen -v' to work without a subcommand.
+        parser.order!(argv)
       rescue OptionParser::InvalidOption => e
-        puts "❌ #{e.message}"
-        puts parser
-        exit 1
+        abort "❌ Error: #{e.message}\n#{parser}"
+      rescue OptionParser::MissingArgument => e
+        abort "❌ Error: #{e.message}\n#{parser}"
       end
 
+      # After parsing global options, the first remaining element is our subcommand
+      subcommand = argv.shift
+
+      # Validate that we have a valid action to perform
       validate_subcommand!(subcommand, parser)
+      # Ensure mandatory identity/domain details are present
       validate_options!(options, parser)
 
+      # Execution phase
       execute_command(subcommand, options)
+    rescue Interrupt
+      # Handle Ctrl+C gracefully
+      puts "\n👋 Operation cancelled by user."
+      exit 130
+    rescue Certgen::Error => e
+      # Domain-specific errors handled with clean output
+      abort "❌ Application Error: #{e.message}"
+    rescue StandardError => e
+      # Unexpected failures include backtrace for debugging if needed
+      abort "💥 Unexpected Error: #{e.message}\n#{e.backtrace.join("\n") if ENV['DEBUG']}"
     end
 
-    # Creates and configures the option parser
+    private
+
+    # Configures the OptionParser instance with supported flags.
     #
-    # @param options [Hash] Hash to store parsed options
-    # @return [OptionParser] Configured option parser
+    # @param options [Hash] Mutable state to store parsed configuration.
+    # @return [OptionParser]
     def self.create_option_parser(options)
       OptionParser.new do |opts|
         opts.banner = "Usage: certgen [command] [options]"
-
+        
         opts.separator ""
-        opts.separator "Commands:"
-        opts.separator "    generate     Generate a real SSL certificate using Let's Encrypt"
-        opts.separator "    test         Test certificate generation using the Let's Encrypt staging environment (no rate limits)"
+        opts.separator "Available Commands:"
+        opts.separator "    generate     Issue a production SSL certificate (subject to rate limits)"
+        opts.separator "    test         Use Let's Encrypt Staging for validation/testing"
+        
         opts.separator ""
-        opts.separator "Options:"
+        opts.separator "Global Options:"
 
-        opts.on("--domain DOMAIN", "The domain to issue a certificate for (e.g., example.com)") do |v|
+        opts.on("-d", "--domain DOMAIN", "The target domain (e.g., 'example.com'). Includes 'www' automatically.") do |v|
           options[:domain] = v
         end
 
-        opts.on("--email EMAIL", "Email address for Let's Encrypt registration") do |v|
+        opts.on("-e", "--email EMAIL", "Contact email for ACME account registration.") do |v|
           options[:email] = v
         end
 
-        opts.on("-h", "--help", "Print this help message") do
+        opts.on("-v", "--version", "Display version information.") do
+          puts "Certgen v#{Certgen::VERSION}"
+          exit
+        end
+
+        opts.on("-h", "--help", "Show this help message.") do
           puts opts
           exit
         end
       end
     end
 
-    # Validates that the subcommand is valid
-    #
-    # @param subcommand [String] The command to validate
-    # @param parser [OptionParser] The parser to display help if invalid
-    # @return [void]
-    # @raise [SystemExit] If subcommand is invalid
+    # Ensures the provided subcommand is recognized by the system.
     def self.validate_subcommand!(subcommand, parser)
       return if %w[generate test].include?(subcommand)
 
-      puts "❌ Unknown command: #{subcommand}"
-      puts parser
-      exit 1
+      message = subcommand ? "Unknown command: '#{subcommand}'" : "No command provided"
+      abort "❌ #{message}\n#{parser}"
     end
 
-    # Validates that required options are present
-    #
-    # @param options [Hash] The parsed options
-    # @param parser [OptionParser] The parser to display help if invalid
-    # @return [void]
-    # @raise [SystemExit] If required options are missing
+    # Validates presence of mandatory flags for cert generation.
     def self.validate_options!(options, parser)
-      return if options[:domain] && options[:email]
+      missing = []
+      missing << "--domain" unless options[:domain]
+      missing << "--email" unless options[:email]
 
-      puts "❌ Both --domain and --email are required"
-      puts parser
-      exit 1
+      return if missing.empty?
+
+      abort "❌ Missing required options: #{missing.join(', ')}\n#{parser}"
     end
 
-    # Executes the appropriate command based on the subcommand
-    #
-    # @param subcommand [String] The command to execute
-    # @param options [Hash] The parsed options
-    # @return [void]
+    # Routes execution to the appropriate Generator instance.
     def self.execute_command(subcommand, options)
-      case subcommand
-      when "generate"
-        Certgen::Generator.new(domain: options[:domain], email: options[:email]).run
-      when "test"
-        Certgen::Generator.new(domain: options[:domain], email: options[:email], staging: true).run
-      else
-        puts "Unknown command. Available: generate, test"
-        exit 1
-      end
+      is_staging = (subcommand == "test")
+      
+      Generator.new(
+        domain: options[:domain], 
+        email: options[:email], 
+        staging: is_staging
+      ).run
     end
   end
 end

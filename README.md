@@ -2,32 +2,29 @@
 
 ![Ruby](https://img.shields.io/badge/Ruby-3.1%2B-red)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Gem Version](https://img.shields.io/gem/v/certgen)
 
-**Certgen** is a Ruby CLI tool to generate free SSL certificates from [Let's Encrypt](https://letsencrypt.org) using **DNS-01 verification**. Perfect for developers and site owners who use cPanel or manually managed servers and need to upload certificates themselves.
+**Certgen** is a pure Ruby CLI tool to generate free SSL certificates from [Let's Encrypt](https://letsencrypt.org) using **DNS-01 verification**. Perfect for developers and site owners who use cPanel or manually managed servers and need to upload certificates themselves.
 
-## ✨ Features
+## 📦 Setup
 
-- ✅ Generate valid SSL certificates via Let's Encrypt
-- 🌐 Supports both base domains and `www.` subdomains automatically
-- 🔐 Uses DNS-01 challenge (great for wildcard and shared hosting)
-- 📁 Outputs `.crt`, `.pem`, and zipped bundles for easy upload
-- 🔄 Stores reusable Let's Encrypt account key
-- 🖥️ CLI interface for quick and easy usage
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/cdrrazan/certgen
+   cd certgen
+   ```
 
-## 📦 Installation
-
-```bash
-gem install certgen
-```
+2. **Install dependencies:**
+   ```bash
+   bundle install
+   ```
 
 ## 🚀 Usage
 
-#### 🔧 Testing with Let’s Encrypt Production
-Run the CLI tool from your terminal:
+#### 🔧 Generating Certificates
+Run the CLI tool from the project directory:
 
 ```bash
-certgen --domain example.com --email user@example.com
+bin/certgen generate --domain example.com --email user@example.com
 ```
 This above command will overall:
 1. Generate or reuse your Let's Encrypt account key
@@ -71,25 +68,9 @@ Record Value: abc123...
 
 Use [https://dnschecker.org](https://dnschecker.org) to confirm propagation before continuing.
 
-## 🔧 Development
-
-Clone and run locally:
-
-```bash
-git clone https://github.com/cdrrazan/certgen
-cd certgen
-bundle install
-```
-
-Run the CLI locally:
-
-```bash
-bin/certgen --domain example.com --email user@example.com
-```
-
 ## ✅ Requirements
 
-- Ruby >= 3
+- Ruby >= 3.1
 - DNS management access to create TXT records
 - cPanel or similar manual SSL upload support
 

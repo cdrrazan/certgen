@@ -1,7 +1,0 @@
-#!/usr/bin/env ruby
-# frozen_string_literal: true
-
-require_relative "../lib/certgen/cli"
-
-# Main executable entry point for the certgen command-line tool
-Certgen::CLI.start(ARGV)
