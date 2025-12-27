@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require_relative "certgen/cli"
-require_relative "certgen/generator"
+require_relative 'certgen/cli'
+require_relative 'certgen/generator'
 
 # Certgen: A streamlined CLI tool for automated SSL certificate generation.
 #
@@ -12,7 +12,7 @@ require_relative "certgen/generator"
 # @since 0.1.0
 module Certgen
   # Current version of the Certgen tool. Follows Semantic Versioning (SemVer).
-  VERSION = "0.1.0"
+  VERSION = '0.1.0'
 
   # Base exception class for all domain-specific errors within the Certgen namespace.
   # Rescuing this allows callers to handle all Certgen-related failures predictably.
